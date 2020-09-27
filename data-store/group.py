@@ -81,7 +81,7 @@ class DataStore:
     return dd.read_parquet(self.data_set_parquet_path, columns=columns, engine='pyarrow').compute()
 
   def normalise_column(self, column, normalise_type=NormaliseMethod.MEAN_STDDEV):
-    column_data = self.data_set.compute()['date']
+    column_data = self.data_set.compute()[column]
     
     if normalise_type is NormaliseMethod.MIN_MAX:
       [min, max] = [column_data.min(), column_data.max()]
@@ -92,7 +92,7 @@ class DataStore:
       column_data = column_data.apply(lambda x: (x - mean) / std_dev)
 
     all_data = self.data_set.compute()
-    all_data['date'] = column_data
+    all_data[column] = column_data
     self.data_set = dd.from_pandas(all_data, npartitions=2)
 
   def convert_to_date_time(self, date_column=None, time_column=None):
