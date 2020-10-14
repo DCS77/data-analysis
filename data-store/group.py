@@ -62,20 +62,13 @@ class DataStore:
     else:
       self.data_set = dd.read_parquet(self.data_set_parquet_path, engine='pyarrow')
     
-    print(self.data_set.head())
-    print('------')
     # Parse date and time
     if date_column or time_column:
       self.convert_to_date_time(date_column=date_column, time_column=time_column)
 
-    print(self.data_set.head())
-    print('------')
     # Store data in RAM to decrease reading time
     if persist:
       self.data_set = self.data_set.persist()
-
-    print('------')
-    print(self.data_set.head())
 
   def get_columns(self, columns):
     return dd.read_parquet(self.data_set_parquet_path, columns=columns, engine='pyarrow').compute()
