@@ -200,8 +200,8 @@ class DataStore:
     for group in self.data_set:
       group.to_parquet(self.data_set_parquet_paths[group], engine='pyarrow')
 
-  def get_data(self):
-    return self.data_set.compute()
+  def get_data(self, parquet):
+    return self.data_set[parquet].compute()
 
 
 '''
