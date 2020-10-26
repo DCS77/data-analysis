@@ -7,8 +7,8 @@ import dask.dataframe as dd
 from datetime import datetime
 from enum import Enum
 
-from identity import Identity
-import globalconfig
+from data_store.identity import Identity as identity
+import data_store.globalconfig as globalconfig
 
 if globalconfig.RECORD_GIT_HASH:
   import git
