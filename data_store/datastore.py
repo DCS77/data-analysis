@@ -28,8 +28,7 @@ class DataStore:
   Example usage at bottom
   '''
 
-  def __init__(self, identity, data_groups=None, data_set_csv_path=None, data_set_parquet_paths=None, date_column=None, time_column=None, select_columns=None, header_row=0, shuffle=False, random_state=None, persist=False):
-    '''Takes either a path to a dataset (CSV file only) or parquet'''
+  def __init__(self, identity, data_groups=None, data_set_csv_path=None, data_set_parquet_paths=None, mismatched_types=None, date_column=None, time_column=None, select_columns=None, header_row=0, shuffle=False, random_state=None, persist=False):
     self.identity = identity
     if data_set_csv_path:
       self.add_data(data_set_csv_path, data_groups, mismatched_types=mismatched_types, date_column=date_column, time_column=time_column, select_columns=select_columns, header_row=header_row, shuffle=shuffle, random_state=random_state, persist=persist)
