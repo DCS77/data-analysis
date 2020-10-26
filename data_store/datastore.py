@@ -32,7 +32,7 @@ class DataStore:
     '''Takes either a path to a dataset (CSV file only) or parquet'''
     self.identity = identity
     if data_set_csv_path:
-      self.add_data(data_set_csv_path, data_groups, date_column=date_column, time_column=time_column, select_columns=select_columns, header_row=header_row, shuffle=shuffle, random_state=random_state, persist=persist)
+      self.add_data(data_set_csv_path, data_groups, mismatched_types=mismatched_types, date_column=date_column, time_column=time_column, select_columns=select_columns, header_row=header_row, shuffle=shuffle, random_state=random_state, persist=persist)
     elif data_set_parquet_paths:
       self.load_data(data_set_parquet_paths, date_column=date_column, time_column=time_column, select_columns=select_columns)
 
@@ -77,7 +77,7 @@ class DataStore:
 
   # Add data to the current group from a csv, allowing for different groups/proportions of data
   # and various settings
-  def add_data(self, data_set_csv_path, data_groups, data_types=None, sort=None, date_column=None, time_column=None, select_columns=None, header_row=0, shuffle=False, random_state=None, persist=False):
+  def add_data(self, data_set_csv_path, data_groups, mismatched_types=None, data_types=None, sort=None, date_column=None, time_column=None, select_columns=None, header_row=0, shuffle=False, random_state=None, persist=False):
     print('Importing CSV...')
     if data_groups is None or len(data_groups) == 0:
       print('data_groups should have at least one set. e.g. {\'train\':0.4, \'test\':0.3, \'ver\':0.3}. Exiting...')
@@ -85,7 +85,7 @@ class DataStore:
 
     split_data_sets = {}
     remaining_groups = dict(data_groups)
-    remainder_set = dd.read_csv(data_set_csv_path, header=0, blocksize=globalconfig.BLOCK_SIZE)
+    remainder_set = dd.read_csv(data_set_csv_path, header=0, blocksize=globalconfig.BLOCK_SIZE, dtype=mismatched_types)
 
     # Split data sets into their target proportions
     for group in data_groups:
