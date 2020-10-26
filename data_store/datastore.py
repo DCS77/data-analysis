@@ -221,7 +221,6 @@ data_store.normalise_column('price', NormaliseMethod.MEAN_STDDEV)
 # Saves data to parquet after normalisation
 data_store.update_parquet()
 
-'''
 identity = (1, 'test', 'test')
-data_store = DataStore(identity, data_set_csv_path='../../../Datasets/Finance/2005-2016-30vars_snippet_large.csv', data_groups={'train':0.4, 'test':0.3, 'ver':0.3}, select_columns=['date','COMNAM'], date_column='date', shuffle=True, random_state=None, persist=False)
-#data_store = DataStore(identity, data_set_csv_path='../../../Datasets/Finance/2005-2016-30vars.csv', select_columns=['date','COMNAM'], date_column='date', shuffle=True, random_state=1, persist=False)
+data_store = DataStore(identity, data_set_csv_path='full_data.csv', data_groups={'train':0.4, 'test':0.3, 'ver':0.3}, select_columns=['date','price'], date_column='date', shuffle=True, random_state=None, persist=False)
+'''
