@@ -9,6 +9,7 @@ from enum import Enum
 
 from identity import Identity
 import globalconfig
+import json
 
 if globalconfig.RECORD_GIT_HASH:
   import git
@@ -28,10 +29,14 @@ class DataStore:
   Example usage at bottom
   '''
 
-  def __init__(self, identity, data_groups=None, data_set_csv_path=None, data_set_parquet_paths=None, mismatched_types=None, date_column=None, time_column=None, select_columns=None, header_row=0, shuffle=False, random_state=None, persist=False):
+  def __init__(self, identity, data_groups=None, data_set_csv_path=None, data_set_parquet_paths=None, data_set_output_dir=None, mismatched_types=None, date_column=None, time_column=None, select_columns=None, header_row=0, shuffle=False, random_state=None, persist=False):
+    '''Initialises DataStore and loads data'''
+    
+    # Load data from CSV or parquet
     self.identity = identity
+
     if data_set_csv_path:
-      self.add_data(data_set_csv_path, data_groups, mismatched_types=mismatched_types, date_column=date_column, time_column=time_column, select_columns=select_columns, header_row=header_row, shuffle=shuffle, random_state=random_state, persist=persist)
+      self.add_data(data_set_csv_path, data_set_output_dir, data_groups, mismatched_types=mismatched_types, date_column=date_column, time_column=time_column, select_columns=select_columns, header_row=header_row, shuffle=shuffle, random_state=random_state, persist=persist)
     elif data_set_parquet_paths:
       self.load_data(data_set_parquet_paths, date_column=date_column, time_column=time_column, select_columns=select_columns)
 
@@ -59,6 +64,9 @@ class DataStore:
     git_diff = ''
     data_description = ('Data description\n'
                         'Date and time produced: {}\n'.format(datetime.now().strftime('%Y/%m/%d, %H:%M:%S')))
+
+    if globalconfig.RECORD_IDENTITY:
+      data_description += 'Identity ID: {}, Name: {}, Key: {}\nData:\n{}\n'.format(self.identity.id, self.identity.name, self.identity.key, json.dumps(self.identity.identity_data))
 
     if globalconfig.RECORD_GIT_HASH:
       repo = git.Repo(search_parent_directories=True)
@@ -92,14 +100,14 @@ class DataStore:
       split_data_sets[group], remainder_set = train_test_split(remainder_set, test_size=fraction, shuffle=shuffle, random_state=random_state)
       del remaining_groups[group]
 
-    # Create file describing parquets
-    [data_description, git_diff] = self.create_data_description(split_data_sets)
+      # Create file describing parquets
+      [data_description, git_diff] = self.create_data_description(split_data_sets[group])
 
-    with open('{}-description.txt'.format(os.path.splitext(data_set_csv_path)[0]), 'w') as file:
-      file.write(data_description)
+      with open('{}/{}_description.txt'.format(output_dir, group), 'w') as file:
+        file.write(data_description)
 
     if globalconfig.RECORD_GIT_DIFF:
-      with open('{}-git-diff.txt'.format(os.path.splitext(data_set_csv_path)[0]), 'w') as file:
+      with open('{}/git-diff.txt'.format(output_dir), 'w') as file:
         file.write(git_diff)
 
     try: self.data_set_parquet_paths
@@ -108,7 +116,10 @@ class DataStore:
 
     # Output data sets into parquet files
     for group in split_data_sets:
-      self.data_set_parquet_paths[group] = '{}-{}.parquet'.format(os.path.splitext(data_set_csv_path)[0], group)
+      if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+
+      self.data_set_parquet_paths[group] = '{}/{}.parquet'.format(output_dir, group)
       split_data_sets[group].to_parquet(self.data_set_parquet_paths[group], engine='pyarrow')
 
       print('Constructed parquet for {}'.format(group))
@@ -123,6 +134,8 @@ class DataStore:
 
   # Load data from a set of parquets, which have already been created using add_data
   def load_data(self, data_set_parquet_paths, data_types=None, sort=None, date_column=None, time_column=None, select_columns=None, persist=False):
+    print('Loading data')
+
     self.data_set_parquet_paths = data_set_parquet_paths
 
     try: self.data_set
@@ -144,14 +157,12 @@ class DataStore:
 
     # Store data in RAM to decrease reading time
     if persist:
-      self.data_set = self.data_set.persist()
+      print('currently not implemented')
 
   def get_columns(self, parquet, columns):
     return dd.read_parquet(self.data_set_parquet_paths[parquet], columns=columns, engine='pyarrow').compute()
 
-  def normalise_column(self, column, normalise_type=NormaliseMethod.MEAN_STDDEV):
-    column_data = self.data_set.compute()[column]
-    
+  def perform_normalisation(self, column_data, normalise_type):
     if normalise_type is NormaliseMethod.MIN_MAX:
       [min, max] = [column_data.min(), column_data.max()]
       column_data = column_data.apply(lambda x: (x - min) * (max - min))
@@ -160,9 +171,23 @@ class DataStore:
       [mean, std_dev] = [column_data.mean(), column_data.std()]
       column_data = column_data.apply(lambda x: (x - mean) / std_dev)
 
-    all_data = self.data_set.compute()
+    return column_data
+
+  def fetch_and_replace_normalised_column(self, column, parquet_data, normalise_type):
+    all_data = parquet_data.compute()
+    column_data = self.perform_normalisation(all_data[column], normalise_type)
     all_data[column] = column_data
-    self.data_set = dd.from_pandas(all_data, npartitions=2)
+    return all_data
+
+  def normalise_column(self, column, parquet=None, normalise_type=NormaliseMethod.MEAN_STDDEV):
+    if parquet is None:
+      for parquet in self.data_set:
+        all_data = self.fetch_and_store_normalised_column(column, self.data_set[parquet], normalise_type)
+        self.data_set[parquet] = dd.from_pandas(all_data, npartitions=2)
+        
+    else:
+      all_data = self.fetch_and_store_normalised_column(column, self.data_set[parquet], normalise_type)
+      self.data_set[parquet] = dd.from_pandas(all_data, npartitions=2)
 
   def convert_to_date_time(self, parquet, date_column=None, time_column=None):
     if date_column and time_column:
