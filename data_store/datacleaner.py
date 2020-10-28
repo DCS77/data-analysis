@@ -1,6 +1,10 @@
 import csv
 
 class DataCleaner:
+  '''
+  Reads a CSV file, applies fixes and saves to another CSV file
+  '''
+
   def __init__(self):
     return
 
