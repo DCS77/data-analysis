@@ -84,7 +84,7 @@ class DataStore:
 
   # Add data to the current group from a csv, allowing for different groups/proportions of data
   # and various settings
-  def add_data(self, data_set_csv_path, data_groups, mismatched_types=None, data_types=None, sort=None, date_column=None, time_column=None, select_columns=None, header_row=0, shuffle=False, random_state=None, persist=False):
+  def add_data(self, data_set_csv_path, output_dir, data_groups, mismatched_types=None, data_types=None, sort=None, date_column=None, time_column=None, select_columns=None, header_row=0, shuffle=False, random_state=None, persist=False):
     print('Importing CSV...')
     if data_groups is None or len(data_groups) == 0:
       print('data_groups should have at least one set. e.g. {\'train\':0.4, \'test\':0.3, \'ver\':0.3}. Exiting...')
